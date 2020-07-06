@@ -1,8 +1,8 @@
 {
 	"manifest_version": 2,
-	"name": "Olympcepy",
-	"description": "Signal event listener to OlympTrade",
-	"version": "5.0",
+	"name": "Trade-S",
+	"description": "Auto signaler",
+	"version": "1.0",
 	"browser_action": {
 		"default_icon": "icon_128.png",
 		"default_popup": "popup.html"
@@ -13,5 +13,10 @@
 		"webRequest",
 		"storage",
 		"https://api.vk.com/"
-	]
+	],
+	"background": {
+		"scripts": [
+			"background.js"
+		]
+	}
 }
