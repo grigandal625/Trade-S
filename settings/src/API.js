@@ -7,6 +7,17 @@ class API {
         } catch (e) {}
     };
 
+    static authorize = (id, token, callback) => {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "https://trades.pythonanywhere.com/api");
+        var obj = {
+            method: "auth",
+            data: { id: id, token: token },
+        };
+        xhr.onload = API.recieved(callback);
+        xhr.send(JSON.stringify(obj));
+    };
+
     static getUserById = (id, callback) => {
         var xhr = new XMLHttpRequest();
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
@@ -47,7 +58,7 @@ class API {
     };
 
     static uploadMySetts = (callback) => {
-        var cb = callback
+        var cb = callback;
         chrome.storage.local.get(["settsData", "userId"], (res) => {
             var r = res;
             if (r.userId && r.settsData) {
@@ -77,8 +88,18 @@ class API {
             var r = res;
             if (r.userId) {
                 API.getUserById(r.userId, (user) => {
-                    var setts = r.settsData;
-                    setts.messages = user.setts.messages;
+                    var setts = r.settsData ? r.settsData : {};
+                    setts.messages = user.setts.messages
+                        ? user.setts.messages.map((e, i) => {
+                              e.toSend =
+                                  setts.messages &&
+                                  setts.messages[i] &&
+                                  setts.messages[i].toSend
+                                      ? setts.messages[i].toSend
+                                      : [];
+                              return e;
+                          })
+                        : [];
                     setts.accessToken = user.setts.accessToken;
                     chrome.storage.local.set({ settsData: setts }, () => {
                         try {

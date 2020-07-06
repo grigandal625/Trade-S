@@ -87,8 +87,42 @@ class APIKeyDialog extends React.Component {
 class MessagesTab extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { openDialog: false, gotToken: false, loaded: false };
+        this.state = {
+            platform: this.props.platform,
+            openDialog: false,
+            gotToken: false,
+            loaded: false,
+        };
     }
+
+    build = () => {
+        return this.state.platform != this.props.platform
+            ? this.setState(
+                  (state, props) => {
+                      state.gotToken = false;
+                      state.platform = props.platform;
+                      state.loaded = false;
+                      state.groupToken = undefined;
+                      return state;
+                  },
+                  () => {
+                      this.rebuild();
+                  }
+              )
+            : this.rebuild();
+    };
+
+    rebuild = () => {
+        return (
+            !this.state.gotToken &&
+            this.getMessages((platformMsg, setts) => {
+                return (
+                    platformMsg.groupToken &&
+                    this.gotToken(platformMsg.groupToken, this.reload)
+                );
+            })
+        );
+    };
 
     openDialog = () => {
         this.setState((state) => {
@@ -114,13 +148,13 @@ class MessagesTab extends React.Component {
             var r = res;
             var data = r.settsData != undefined ? r.settsData : {};
             data.messages = data.messages ? data.messages : [];
-            data.messages[self.props.platform] = data.messages[
-                self.props.platform
+            data.messages[self.state.platform] = data.messages[
+                self.state.platform
             ]
-                ? data.messages[self.props.platform]
+                ? data.messages[self.state.platform]
                 : {};
             try {
-                callback(data.messages[self.props.platform], data);
+                callback(data.messages[self.state.platform], data);
             } catch (e) {}
         });
     };
@@ -144,11 +178,13 @@ class MessagesTab extends React.Component {
                 this.setState(
                     (state) => {
                         state.gotToken = true;
+                        state.groupToken = token;
+                        state.openDialog = false;
                         return state;
                     },
                     () => {
                         try {
-                            callback();
+                            callback(token, platformMsg, setts);
                         } catch (e) {}
                     }
                 );
@@ -172,28 +208,33 @@ class MessagesTab extends React.Component {
 
     load = () => {
         this.getMessages((platformMsg, setts) => {
-            VKMethods.getGroupChats(platformMsg.groupToken, (result) => {
+            var p = {
+                groupToken: platformMsg.groupToken,
+                toSend: platformMsg.toSend ? platformMsg.toSend : [],
+            };
+            VKMethods.getGroupChats(p.groupToken, (result) => {
                 if (result.error) {
                     alert(result);
                     console.log(result);
-                    return;
                 }
                 this.setState(
                     (state) => {
+                        p.toSend = p.toSend ? p.toSend : [];
                         state.chats = result.response.items
-                            .filter((e) => {
-                                return e.conversation.peer.type == "chat";
+                            .filter((c) => {
+                                return c.conversation.peer.type == "chat";
                             })
-                            .map((e) => {
+                            .map((chat) => {
                                 return {
-                                    id: e.conversation.peer.id,
-                                    name: e.chat_settings.title,
-                                    selected: platformMsg.toSend.includes(
-                                        e.conversation.peer.id
+                                    id: chat.conversation.peer.id,
+                                    name: chat.conversation.chat_settings.title,
+                                    selected: p.toSend.includes(
+                                        chat.conversation.peer.id
                                     ),
                                 };
                             });
                         state.loaded = true;
+
                         return state;
                     },
                     () => {
@@ -204,7 +245,7 @@ class MessagesTab extends React.Component {
         });
     };
 
-    toSendChanged = (chat) => {
+    toSendChanged = (chat) => (event) => {
         chat.selected = !chat.selected;
         this.getMessages((platformMsg, setts) => {
             this.updateMessages(
@@ -219,6 +260,7 @@ class MessagesTab extends React.Component {
                         state.chats = state.chats.map((e) => {
                             return e.id == chat.id ? chat : e;
                         });
+                        return state;
                     });
                 }
             );
@@ -282,6 +324,7 @@ class MessagesTab extends React.Component {
     };
 
     render = () => {
+        this.build();
         if (this.state.gotToken) {
             return (
                 <>
@@ -300,15 +343,34 @@ class MessagesTab extends React.Component {
                     <APIKeyDialog
                         open={this.state.openDialog}
                         onCancel={this.closeDialog}
-                        onOk={this.tokenRecieved}
+                        onOk={(token) => {
+                            this.gotToken(token, this.reload);
+                        }}
                     />
                     {this.getChatTable()}
                 </>
             );
-        } else if (this.state.gotToken != undefined){
-            return
+        } else if (this.state.gotToken != undefined) {
+            return (
+                <>
+                    <List>
+                        <ListItem button onClick={this.openDialog}>
+                            <ListItemIcon>
+                                <AddIcon />
+                            </ListItemIcon>
+                            <ListItemText primary={"Укажите API-ключ группы"} />
+                        </ListItem>
+                    </List>
+                    <APIKeyDialog
+                        open={this.state.openDialog}
+                        onCancel={this.closeDialog}
+                        onOk={(token) => {
+                            this.gotToken(token, this.reload);
+                        }}
+                    />
+                </>
+            );
         }
-
         return <CircularProgress style={{ padding: 20 }} />;
     };
 }
@@ -318,6 +380,5 @@ class PostsTab extends React.Component {
         return <> Posts </>;
     };
 }
-
 
 export { MessagesTab, PostsTab };

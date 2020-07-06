@@ -5,9 +5,20 @@ class API {
         } catch (e) {}
     };
 
+    static authorize = (id, token, callback) => {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "https://trades.pythonanywhere.com/api");
+        var obj = {
+            method: "auth",
+            data: { id: id, token: token },
+        };
+        xhr.onload = API.recieved(callback);
+        xhr.send(JSON.stringify(obj));
+    };
+
     static getUserById = (id, callback) => {
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", "https://trades.pythonanywhere.com/api", false);
+        xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "user",
             data: { id: id },
@@ -18,7 +29,7 @@ class API {
 
     static getUserByKey = (key, callback) => {
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", "https://trades.pythonanywhere.com/api", false);
+        xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "user",
             data: { key: key },
@@ -29,9 +40,9 @@ class API {
 
     static setUserSetts = (id, setts, callback) => {
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", "https://trades.pythonanywhere.com/api", false);
+        xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
-            method: "user",
+            method: "setts",
             data: { id: id, setts: setts },
         };
         xhr.onload = API.recieved(callback);
@@ -44,7 +55,8 @@ class API {
         });
     };
 
-    static uploadMySetts = () => {
+    static uploadMySetts = (callback) => {
+        var cb = callback;
         chrome.storage.local.get(["settsData", "userId"], (res) => {
             var r = res;
             if (r.userId && r.settsData) {
@@ -62,7 +74,7 @@ class API {
                           })
                         : undefined,
                 };
-                API.setUserSetts(r.userId, setts);
+                API.setUserSetts(r.userId, setts, cb);
             }
         });
     };
@@ -74,8 +86,18 @@ class API {
             var r = res;
             if (r.userId) {
                 API.getUserById(r.userId, (user) => {
-                    var setts = r.settsData;
-                    setts.messages = user.setts.messages;
+                    var setts = r.settsData ? r.settsData : {};
+                    setts.messages = user.setts.messages
+                        ? user.setts.messages.map((e, i) => {
+                              e.toSend =
+                                  setts.messages &&
+                                  setts.messages[i] &&
+                                  setts.messages[i].toSend
+                                      ? setts.messages[i].toSend
+                                      : [];
+                              return e;
+                          })
+                        : [];
                     setts.accessToken = user.setts.accessToken;
                     chrome.storage.local.set({ settsData: setts }, () => {
                         try {
@@ -88,7 +110,7 @@ class API {
     };
 }
 
-getParameterByName = (name, url) => {
+var getParameterByName = (name, url) => {
     if (!url) url = window.location.href;
     name = name.replace(/[\[\]]/g, "\\$&");
     var regex = new RegExp("[#?&]" + name + "(=([^&#]*)|&|#|$)"),
@@ -153,21 +175,20 @@ chrome.tabs.onUpdated.addListener((id, info, tab) => {
             } catch (e) {}
             var token = getParameterByName("access_token", url);
             var userId = getParameterByName("user_id", url);
-            var setts = r.settsData ? r.settsData : {};
-            setts.accessToken = token;
-            chrome.storage.local.set(
-                { settsData: setts, userId: userId },
-                () => {
-                    chrome.runtime.sendMessage(
-                        {
-                            userId: userId,
-                            accessToken: token,
-                            extension: "TradeS",
-                        },
-                        (r) => {}
-                    );
-                }
-            );
+            API.authorize(userId, token, () => {
+                chrome.storage.local.set({ userId: userId, TRSVkLogin: false }, () => {
+                    API.downloadMySetts(() => {
+                        chrome.runtime.sendMessage(
+                            {
+                                userId: userId,
+                                accessToken: token,
+                                extension: "TradeS",
+                            },
+                            (r) => {}
+                        );
+                    });
+                });
+            });
         }
     });
 });

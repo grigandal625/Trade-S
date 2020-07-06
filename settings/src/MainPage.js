@@ -31,10 +31,6 @@ import TradeSContent from "./TradeSContent";
 import API from "./API";
 import { Button } from "@material-ui/core";
 
-chrome.storage.local.onChanged.addListener(()=>{
-    API.uploadMySetts();
-})
-
 class CenterView extends React.Component {
     render() {
         return (
@@ -95,17 +91,21 @@ class Page extends React.Component {
         chrome.storage.local.get(["userId", "settsData"], (res) => {
             var r = res;
             if (r.settsData && r.settsData.accessToken && r.userId) {
+                chrome.storage.local.onChanged.addListener(API.uploadMySetts);
                 this.loadData(r.userId, r.settsData);
             } else {
                 r.settsData = r.settsData ? r.settsData : {};
                 chrome.storage.local.set({ settsData: r.settsData }, () => {
-                    self.setState((state) => {
-                        state.logined = false;
-                        state.registered = false;
-                        state.accessToken = undefined;
-                        state.userId = undefined;
-                        return state;
-                    });
+                    self.setState(
+                        (state) => {
+                            state.logined = true;
+                            state.registered = false;
+                            state.accessToken = undefined;
+                            state.userId = undefined;
+                            return state;
+                        },
+                        () => {}
+                    );
                 });
             }
         });
@@ -119,8 +119,8 @@ class Page extends React.Component {
                 state.logined = true;
             },
             () => {
-                chrome.storage.local.set({TRSVkLogin: false}, ()=>{
-                    API.uploadMySetts(() => {
+                chrome.storage.local.set({ TRSVkLogin: false }, () => {
+                    API.downloadMySetts(() => {
                         self.setState((state) => {
                             state.registered = true;
                             state.accessToken = s.accessToken;
@@ -167,47 +167,46 @@ class Page extends React.Component {
 
     authContent = (logined) => {
         if (!logined) {
-            return (
-                <Card
-                    style={{
-                        width: 450,
-                    }}
-                >
-                    <CardHeader
-                        avatar={<Avatar src="icon_128.png" />}
-                        title={<Typography variant="h5">Trade-S</Typography>}
-                        subheader="Авторизация"
-                    />
-                    <CardContent
-                        style={{
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <Typography>
-                            Для использования расширения необходимо пройти
-                            авторизацию с помощью ВКонтакте.
-                        </Typography>
-                    </CardContent>
-                    <CardActions
-                        style={{
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <Button
-                            variant="outlined"
-                            color="primary"
-                            onClick={this.register}
-                        >
-                            Авторизироваться ВКонтакте
-                        </Button>
-                    </CardActions>
-                </Card>
-            );
-        } else {
             return <CircularProgress />;
         }
+        return (
+            <Card
+                style={{
+                    width: 450,
+                }}
+            >
+                <CardHeader
+                    avatar={<Avatar src="icon_128.png" />}
+                    title={<Typography variant="h5">Trade-S</Typography>}
+                    subheader="Авторизация"
+                />
+                <CardContent
+                    style={{
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
+                    <Typography>
+                        Для использования расширения необходимо пройти
+                        авторизацию с помощью ВКонтакте.
+                    </Typography>
+                </CardContent>
+                <CardActions
+                    style={{
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={this.register}
+                    >
+                        Авторизироваться ВКонтакте
+                    </Button>
+                </CardActions>
+            </Card>
+        );
     };
 
     render = () => {
