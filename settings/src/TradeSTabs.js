@@ -469,13 +469,13 @@ class GroupsSelector extends React.Component {
                 .filter((e) => e.selected)
                 .map((e) => e.id);
             chrome.storage.local.set({settsData: setts}, ()=>{
-                self.setState(state){
+                self.setState((state) => {
                     state.groups = state.groups.map((e) => {
                         e.selected = setts.posts[this.props.platform].includes(e.id);
                         return e;
                     })
                     return state;
-                }
+                });
             })
         });
     };
