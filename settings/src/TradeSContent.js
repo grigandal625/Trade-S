@@ -54,11 +54,15 @@ class MessagesContent extends React.Component {
         });
     };
 
+    currentTab = () => {
+        return <MessagesTab platform={this.state.index}/>
+    }
+
     render = () => {
         return (
             <>
                 <OPTabs tabChanged={this.tabChanged} />
-                <MessagesTab platform={this.state.index} />
+                {this.currentTab()}
             </>
         );
     };

@@ -87,7 +87,7 @@ class APIKeyDialog extends React.Component {
 class MessagesTab extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { openDialog: false };
+        this.state = { openDialog: false, gotToken: false, loaded: false };
     }
 
     openDialog = () => {
@@ -104,53 +104,12 @@ class MessagesTab extends React.Component {
         });
     };
 
-    loadChats = () => {
-        if (this.state.renderedPlatform != this.props.platform) {
-            this.load();
-        }
-    };
-
-    reload = () => {
-        this.setState((state, props) => {
-            state.hasToken = undefined;
-            state.renderedPlatform = -1;
-            return state;
-        });
-    };
-
-    load = () => {
-        var self = this;
-        chrome.storage.local.get(["settsData"], (res) => {
-            var r = res;
-            if (
-                r.settsData != undefined &&
-                r.settsData.messages &&
-                r.settsData.messages[this.props.platform] &&
-                r.settsData.messages[this.props.platform].groupToken
-            ) {
-                self.gotToken(
-                    r.settsData.messages[this.props.platform].groupToken
-                );
-            } else {
-                self.setState((state, props) => {
-                    state.settsData = r.settsData;
-                    state.renderedPlatform = props.platform;
-                    state.hasToken = false;
-                    state.groupToken = undefined;
-                    return state;
-                });
-            }
-        });
-    };
-
     tokenRecieved = (token) => {
         this.gotToken(token, this.reload);
     };
 
-    gotToken = (token, callback) => {
+    getMessages = (callback) => {
         var self = this;
-        var t = token;
-        var cb = callback;
         chrome.storage.local.get(["settsData"], (res) => {
             var r = res;
             var data = r.settsData != undefined ? r.settsData : {};
@@ -160,25 +119,36 @@ class MessagesTab extends React.Component {
             ]
                 ? data.messages[self.props.platform]
                 : {};
-            data.messages[self.props.platform].groupToken = t;
-            data.messages[self.props.platform].toSend = data.messages[
-                self.props.platform
-            ].toSend
-                ? data.messages[self.props.platform].toSend
-                : [];
-            chrome.storage.local.set({ settsData: data }, () => {
-                self.setState(
-                    (state, props) => {
-                        state.settsData = r.settsData;
-                        state.renderedPlatform = props.platform;
-                        state.hasToken = true;
-                        state.groupToken = t;
-                        state.openDialog = false;
+            try {
+                callback(data.messages[self.props.platform], data);
+            } catch (e) {}
+        });
+    };
+
+    updateMessages = (token, toSend, callback) => {
+        this.getMessages((platformMsg, setts) => {
+            platformMsg.groupToken = token;
+            platformMsg.toSend = toSend;
+            setts.messages[this.props.platform] = platformMsg;
+            chrome.storage.local.set({ settsData: setts }, () => {
+                try {
+                    callback(platformMsg, setts);
+                } catch (e) {}
+            });
+        });
+    };
+
+    gotToken = (token, callback) => {
+        this.getMessages((platformMsg, setts) => {
+            this.updateMessages(token, platformMsg.toSend, () => {
+                this.setState(
+                    (state) => {
+                        state.gotToken = true;
                         return state;
                     },
                     () => {
                         try {
-                            cb();
+                            callback();
                         } catch (e) {}
                     }
                 );
@@ -186,11 +156,133 @@ class MessagesTab extends React.Component {
         });
     };
 
+    reload = () => {
+        this.setState(
+            (state) => {
+                state.loaded = false;
+                state.openDialog = false;
+                state.chats = undefined;
+                return state;
+            },
+            () => {
+                this.load();
+            }
+        );
+    };
+
+    load = () => {
+        this.getMessages((platformMsg, setts) => {
+            VKMethods.getGroupChats(platformMsg.groupToken, (result) => {
+                if (result.error) {
+                    alert(result);
+                    console.log(result);
+                    return;
+                }
+                this.setState(
+                    (state) => {
+                        state.chats = result.response.items
+                            .filter((e) => {
+                                return e.conversation.peer.type == "chat";
+                            })
+                            .map((e) => {
+                                return {
+                                    id: e.conversation.peer.id,
+                                    name: e.chat_settings.title,
+                                    selected: platformMsg.toSend.includes(
+                                        e.conversation.peer.id
+                                    ),
+                                };
+                            });
+                        state.loaded = true;
+                        return state;
+                    },
+                    () => {
+                        this.updateMessages(platformMsg.groupToken, []);
+                    }
+                );
+            });
+        });
+    };
+
+    toSendChanged = (chat) => {
+        chat.selected = !chat.selected;
+        this.getMessages((platformMsg, setts) => {
+            this.updateMessages(
+                platformMsg.groupToken,
+                this.state.chats
+                    .filter((e) =>
+                        e.id == chat.id ? chat.selected : e.selected
+                    )
+                    .map((e) => e.id),
+                () => {
+                    this.setState((state) => {
+                        state.chats = state.chats.map((e) => {
+                            return e.id == chat.id ? chat : e;
+                        });
+                    });
+                }
+            );
+        });
+    };
+
+    getChatRows = () => {
+        return this.state.chats.map((e) => {
+            return (
+                <TableRow>
+                    <TableCell>{e.name}</TableCell>
+                    <TableCell>
+                        <Switch
+                            checked={e.selected}
+                            color="primary"
+                            onChange={this.toSendChanged(e)}
+                        />
+                    </TableCell>
+                    <TableCell align="right">
+                        <Button
+                            onClick={() => {
+                                this.getMessages((platformMsg) => {
+                                    VKMethods.sendMessageToGroupChat(
+                                        platformMsg.groupToken,
+                                        e.id,
+                                        "Тестовое сообщение"
+                                    );
+                                });
+                            }}
+                        >
+                            Тестовое сообщение
+                        </Button>
+                    </TableCell>
+                </TableRow>
+            );
+        });
+    };
+
+    getChatTable = () => {
+        if (this.state.loaded) {
+            return (
+                <TableContainer component={Paper}>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Чат</TableCell>
+                                <TableCell>Отправка</TableCell>
+                                <TableCell align="right">
+                                    <Button onClick={this.reload}>
+                                        <RefreshIcon />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>{this.getChatRows()}</TableBody>
+                    </Table>
+                </TableContainer>
+            );
+        }
+        return <CircularProgress style={{ padding: 20 }} />;
+    };
+
     render = () => {
-        this.loadChats();
-        if (this.state.hasToken == undefined) {
-            return <CircularProgress style={{ padding: 20 }} />;
-        } else if (this.state.hasToken) {
+        if (this.state.gotToken) {
             return (
                 <>
                     <List>
@@ -210,337 +302,22 @@ class MessagesTab extends React.Component {
                         onCancel={this.closeDialog}
                         onOk={this.tokenRecieved}
                     />
-                    <ChatSelector
-                        platform={this.props.platform}
-                        token={this.state.groupToken}
-                        data={this.state.settsData}
-                        tab={this}
-                    />
+                    {this.getChatTable()}
                 </>
             );
-        } else {
-            return (
-                <>
-                    <List>
-                        <ListItem button onClick={this.openDialog}>
-                            <ListItemIcon>
-                                <AddIcon />
-                            </ListItemIcon>
-                            <ListItemText primary={"Укажите API-ключ группы"} />
-                        </ListItem>
-                    </List>
-                    <APIKeyDialog
-                        open={this.state.openDialog}
-                        onCancel={this.closeDialog}
-                        onOk={this.gotToken}
-                    />
-                </>
-            );
+        } else if (this.state.gotToken != undefined){
+            return
         }
-    };
-}
 
-class ChatSelector extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = { loaded: false, renderedPlatform: props.platform };
-        this.loadChats();
-    }
-
-    loadChats = () => {
-        if (this.props.platform != -1) {
-            VKMethods.getGroupChats(this.props.token, this.chatsRecieved);
-        }
-    };
-
-    chatsRecieved = (result) => {
-        if (result.error) {
-            alert(result);
-            console.log(result);
-            this.setState((state) => {
-                state.loaded = false;
-                return state;
-            });
-            return;
-        }
-        var chats = result.response.items
-            .filter((e) => e.conversation.peer.type == "chat")
-            .map((e) => {
-                return {
-                    name: e.conversation.chat_settings.title,
-                    id: e.conversation.peer.id,
-                };
-            });
-        var self = this;
-        chrome.storage.local.get(["settsData"], (res) => {
-            var r = res;
-            var data = r.settsData ? r.settsData : {};
-            data.messages = data.messages ? data.messages : [];
-
-            data.messages[self.props.platform] = data.messages[
-                self.props.platform
-            ]
-                ? data.messages[self.props.platform]
-                : {};
-
-            data.messages[self.props.platform].toSend = data.messages[
-                self.props.platform
-            ].toSend
-                ? data.messages[self.props.platform].toSend
-                : [];
-
-            var selected = data.messages[self.props.platform].toSend;
-            self.updateChats(
-                chats.map((c) => {
-                    c.selected = selected.includes(c.id);
-                    return c;
-                })
-            );
-        });
-    };
-
-    updateChats = (cs) => {
-        var chats = cs;
-        var self = this;
-        chrome.storage.local.get(["settsData"], (res) => {
-            var r = res;
-            var data = r.settsData ? r.settsData : {};
-            data.messages = data.messages ? data.messages : [];
-
-            data.messages[self.props.platform] = data.messages[
-                self.props.platform
-            ]
-                ? data.messages[self.props.platform]
-                : {};
-
-            data.messages[self.props.platform].toSend = chats
-                .filter((e) => e.selected)
-                .map((e) => e.id);
-
-            chrome.storage.local.set({ settsData: data }, () => {
-                self.setState((state, props) => {
-                    state.renderedPlatform = props.platform;
-                    state.loaded = true;
-                    state.chats = chats;
-                    return state;
-                });
-            });
-        });
-    };
-
-    toSendChanged = (c) => (event) => {
-        var chat = c;
-        this.updateChats(
-            this.state.chats.map((e) => {
-                e.selected = e.id != chat.id ? e.selected : !chat.selected;
-                return e;
-            })
-        );
-    };
-
-    getChatRows = () => {
-        return this.state.chats.map((e) => {
-            return (
-                <TableRow>
-                    <TableCell>{e.name}</TableCell>
-                    <TableCell>
-                        <Switch
-                            checked={e.selected}
-                            color="primary"
-                            onChange={this.toSendChanged(e)}
-                        />
-                    </TableCell>
-                    <TableCell align="right">
-                        <Button
-                            onClick={() => {
-                                console.log("sending");
-                                VKMethods.sendMessageToGroupChat(
-                                    this.props.token,
-                                    e.id,
-                                    "Тестовое сообщение"
-                                );
-                            }}
-                        >
-                            Тестовое сообщение
-                        </Button>
-                    </TableCell>
-                </TableRow>
-            );
-        });
-    };
-
-    render = () => {
-        if (this.state.renderedPlatform != this.props.platform) {
-            this.props.tab.reload();
-        }
-        if (this.state.loaded) {
-            return (
-                <TableContainer component={Paper}>
-                    <Table>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Чат</TableCell>
-                                <TableCell>Отправка</TableCell>
-                                <TableCell align="right">
-                                    <Button onClick={this.props.tab.reload}>
-                                        <RefreshIcon />
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {this.getChatRows(this.state.chats)}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            );
-        } else {
-            return <CircularProgress style={{ padding: 20 }} />;
-        }
+        return <CircularProgress style={{ padding: 20 }} />;
     };
 }
 
 class PostsTab extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = { loaded: false };
-    }
-
-    loadGroups = () => {
-        VKMethods.getMyGroups((result) => {
-            var r = result;
-            if (r.error) {
-                alert(r);
-                console.log(r);
-            }
-            chrome.storage.local.get(["settsData"], (r) => {
-                this.setState((state) => {
-                    state.loaded = true;
-                    state.data = r.response.items.map((e) => {
-                        return {
-                            id: e.id,
-                            name: e.name,
-                            selected:
-                                r.settsData &&
-                                r.settsData.posts &&
-                                r.settsData.posts[this.props.platform] &&
-                                r.settsData.posts[this.props.platform].includes(
-                                    e.id
-                                ),
-                        };
-                    });
-                    return state;
-                });
-            });
-        });
-    };
-
-    reload = () => {
-        this.setState((state) => {
-            state.loaded = false;
-            return state;
-        });
-    };
-
     render = () => {
-        this.loadGroups();
-        if (!this.state.loaded) {
-            return <CircularProgress style={{ padding: 20 }} />;
-        }
-        return <GroupsSelector data={this.state.data} platform={this} />;
+        return <> Posts </>;
     };
 }
 
-class GroupsSelector extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            groups: this.props.data,
-            renderedPlatform: props.platform,
-        };
-    }
-
-    updateGroups = (groups) => {
-        var self = this;
-        chrome.storage.local.get(["settsData"], (r) => {
-            var setts = r.settsData ? r.settsData : {};
-            setts.posts = setts.posts ? setts.posts : [];
-            setts.posts[this.props.platform] = groups
-                .filter((e) => e.selected)
-                .map((e) => e.id);
-            chrome.storage.local.set({settsData: setts}, ()=>{
-                self.setState((state) => {
-                    state.groups = state.groups.map((e) => {
-                        e.selected = setts.posts[this.props.platform].includes(e.id);
-                        return e;
-                    })
-                    return state;
-                });
-            })
-        });
-    };
-
-    toSendChanged = (group) => (event) => {
-        this.updateGroups(this.state.groups.map((e) => {
-            e.selected = e.id != group.id ? e.selected : !group.selected;
-            return e;
-        }))
-    };
-
-    getGroupRows = (data) => {
-        return data.map((e) => {
-            return (
-                <TableRow>
-                    <TableCell>{e.name}</TableCell>
-                    <TableCell>
-                        <Switch
-                            checked={e.selected}
-                            color="primary"
-                            onChange={this.toSendChanged(e)}
-                        />
-                    </TableCell>
-                    <TableCell align="right">
-                        <Button
-                            onClick={() => {
-                                console.log("sending");
-                                VKMethods.sendMessageToGroupChat(
-                                    this.props.token,
-                                    e.id,
-                                    "Тестовое сообщение"
-                                );
-                            }}
-                        >
-                            Тестовое сообщение
-                        </Button>
-                    </TableCell>
-                </TableRow>
-            );
-        });
-    };
-
-    render = () => {
-        if (this.state.renderedPlatform != this.props.platform) {
-            this.props.tab.reload();
-        }
-        return (
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Группа</TableCell>
-                            <TableCell>Отправка</TableCell>
-                            <TableCell align="right">
-                                <Button onClick={this.props.tab.reload}>
-                                    <RefreshIcon />
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>{this.getGroupRows(this.state.groups)}</TableBody>
-                </Table>
-            </TableContainer>
-        );
-    };
-}
 
 export { MessagesTab, PostsTab };

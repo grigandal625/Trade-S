@@ -42,7 +42,7 @@ class VKMethods {
     };
 
     static getMyGroups = (callback) => {
-        var cb = callback;
+        var cb = callback
         chrome.storage.local.get(['settsData', 'userId'], (res)=>{
             var r = res;
             VKMethods.getUsersGroups(r.userId, r.settsData.accessToken, cb)
@@ -59,6 +59,16 @@ class VKMethods {
         xhr.onload = VKMethods.executed(callback);
         xhr.send();
     };
+
+    static postOnMyGroupWall = (groupId, message, callback) => {
+        var cb = callback
+        var id = groupId;
+        var m = message;
+        chrome.storage.local.get(['settsData'], (res)=>{
+            var r = res;
+            VKMethods.getUsersGroups(id, r.settsData.accessToken, m, cb)
+        })
+    }
 
 }
 
