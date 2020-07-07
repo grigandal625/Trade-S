@@ -91,7 +91,9 @@ class Page extends React.Component {
         chrome.storage.local.get(["userId", "settsData"], (res) => {
             var r = res;
             if (r.settsData && r.settsData.accessToken && r.userId) {
-                chrome.storage.local.onChanged.addListener(API.uploadMySetts);
+                chrome.storage.local.onChanged.addListener((r) => {
+                    r.settsData && API.uploadMySetts();
+                });
                 this.loadData(r.userId, r.settsData);
             } else {
                 r.settsData = r.settsData ? r.settsData : {};
@@ -167,7 +169,7 @@ class Page extends React.Component {
 
     authContent = (logined) => {
         if (!logined) {
-            return <CircularProgress />;
+            return <CircularProgress color="#e0f7fa" />;
         }
         return (
             <Card
