@@ -138,10 +138,6 @@ class MessagesTab extends React.Component {
         });
     };
 
-    tokenRecieved = (token) => {
-        this.gotToken(token, this.reload);
-    };
-
     getMessages = (callback) => {
         var self = this;
         chrome.storage.local.get(["settsData"], (res) => {
@@ -238,7 +234,12 @@ class MessagesTab extends React.Component {
                         return state;
                     },
                     () => {
-                        this.updateMessages(platformMsg.groupToken, []);
+                        this.updateMessages(
+                            platformMsg.groupToken,
+                            this.state.chats
+                                .filter((e) => e.selected)
+                                .map((e) => e.id)
+                        );
                     }
                 );
             });
@@ -376,8 +377,166 @@ class MessagesTab extends React.Component {
 }
 
 class PostsTab extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            loaded: false,
+            platform: -1, //this.props.platform,
+            groups: undefined,
+        };
+    }
+
+    build = () => {
+        return this.state.platform != this.props.platform
+            ? this.reload()
+            : undefined;
+    };
+
+    reload = () => {
+        this.setState(
+            (state) => {
+                state.loaded = false;
+                state.groups = undefined;
+                state.platform = this.props.platform;
+                return state;
+            },
+            () => {
+                this.load();
+            }
+        );
+    };
+
+    load = () => {
+        this.getPosts((posts, setts) => {
+            var p = posts ? posts.map((e) => e) : [];
+            VKMethods.getMyGroups((result) => {
+                if (result.error) {
+                    alert(result);
+                    console.log(result);
+                    return;
+                }
+                this.setState((state) => {
+                    state.loaded = true;
+                    state.groups = result.response.items.map(
+                        (e) => {
+                            return {
+                                id: e.id,
+                                name: e.name,
+                                selected: p.includes(e.id),
+                            };
+                        },
+                        () => {
+                            this.updatePosts(
+                                this.state.groups
+                                    .filter((e) => e.selected)
+                                    .map((e) => e.id)
+                            );
+                        }
+                    );
+                    return state;
+                });
+            });
+        });
+    };
+
+    getPosts = (callback) => {
+        var cb = callback;
+        var self = this;
+        chrome.storage.local.get(["settsData"], (r) => {
+            var posts =
+                r.settsData.posts && r.settsData.posts[self.state.platform]
+                    ? r.settsData.posts[self.state.platform]
+                    : [];
+            try {
+                cb(posts, r.settsData);
+            } catch (e) {}
+        });
+    };
+
+    updatePosts = (newPosts, callback) => {
+        this.getPosts((posts, setts) => {
+            var cb = callback;
+            setts.posts = setts.posts ? setts.posts : [];
+            setts.posts[this.state.platform] = newPosts;
+            chrome.storage.local.set({ settsData: setts }, () => {
+                try {
+                    cb(setts);
+                } catch (e) {}
+            });
+        });
+    };
+
+    toSendChanged = (group) => (event) => {
+        group.selected = !group.selected;
+
+        this.updatePosts(
+            this.state.groups
+                .filter((e) => (e.id == group.id ? group.selected : e.selected))
+                .map((e) => e.id),
+            () => {
+                this.setState((state) => {
+                    state.loaded = true;
+                    state.groups = state.groups.map((e) => {
+                        return e.id == group.id ? group : e;
+                    });
+                    return state;
+                });
+            }
+        );
+    };
+
+    getGropuRows = () => {
+        return this.state.groups.map((e) => {
+            return (
+                <TableRow>
+                    <TableCell>{e.name}</TableCell>
+                    <TableCell>
+                        <Switch
+                            checked={e.selected}
+                            color="primary"
+                            onChange={this.toSendChanged(e)}
+                        />
+                    </TableCell>
+                    <TableCell align="right">
+                        <Button
+                            onClick={() => {
+                                VKMethods.postOnMyGroupWall(
+                                    e.id,
+                                    "Тестовый пост"
+                                );
+                            }}
+                        >
+                            Тестовый пост
+                        </Button>
+                    </TableCell>
+                </TableRow>
+            );
+        });
+    };
+
     render = () => {
-        return <> Posts </>;
+        this.build();
+        if (this.state.loaded) {
+            return (
+                <TableContainer component={Paper}>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Группа</TableCell>
+                                <TableCell>Отправка</TableCell>
+                                <TableCell align="right">
+                                    <Button onClick={this.reload}>
+                                        <RefreshIcon />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>{this.getGropuRows()}</TableBody>
+                    </Table>
+                </TableContainer>
+            );
+        }
+        return <CircularProgress style={{ padding: 20 }} />;
     };
 }
 

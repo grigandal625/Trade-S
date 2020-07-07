@@ -66,7 +66,7 @@ class VKMethods {
         var m = message;
         chrome.storage.local.get(['settsData'], (res)=>{
             var r = res;
-            VKMethods.getUsersGroups(id, r.settsData.accessToken, m, cb)
+            VKMethods.postOnGroupWall(id, r.settsData.accessToken, m, cb)
         })
     }
 
