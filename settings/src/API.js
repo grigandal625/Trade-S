@@ -40,6 +40,13 @@ class API {
         xhr.send(JSON.stringify(obj));
     };
 
+    static getMyData = (callback) => {
+        var cb = callback;
+        chrome.storage.local.get(["userId"], (r)=>{
+            API.getUserById(r.userId, cb)
+        })
+    }
+
     static setUserSetts = (id, setts, callback) => {
         var xhr = new XMLHttpRequest();
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
@@ -83,7 +90,6 @@ class API {
 
     static downloadMySetts = (callback) => {
         var cb = callback;
-        var self = this;
         chrome.storage.local.get(["settsData", "userId"], (res) => {
             var r = res;
             if (r.userId) {

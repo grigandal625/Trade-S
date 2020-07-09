@@ -48,21 +48,6 @@ class CenterView extends React.Component {
     }
 }
 
-class DonatFrame extends React.Component {
-    render = () => {
-        return (
-            <iframe
-                src="https://money.yandex.ru/quickpay/shop-widget?writer=seller&targets=%D0%9F%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%BA%D0%B0%20%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%D0%B0%20Trade-S&targets-hint=&default-sum=&button-text=13&payment-type-choice=on&mobile-payment-type-choice=on&hint=&successURL=&quickpay=shop&account=4100115567443945"
-                width="423"
-                height="222"
-                frameborder="0"
-                allowtransparency="true"
-                scrolling="no"
-            ></iframe>
-        );
-    };
-}
-
 class Page extends React.Component {
     constructor(props) {
         super(props);

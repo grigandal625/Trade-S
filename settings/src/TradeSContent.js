@@ -13,6 +13,14 @@ import MenuList from "@material-ui/core/MenuList";
 import Popper from "@material-ui/core/Popper";
 import ClickAwayListener from "@material-ui/core/ClickAwayListener";
 import Grow from "@material-ui/core/Grow";
+import Slider from "@material-ui/core/Slider";
+import CircularProgress from "@material-ui/core/CircularProgress";
+import Avatar from "@material-ui/core/Avatar";
+import Card from "@material-ui/core/Card";
+import CardHeader from "@material-ui/core/CardHeader";
+import CardActions from "@material-ui/core/CardActions";
+import CardContent from "@material-ui/core/CardContent";
+import Link from "@material-ui/core/Link";
 
 import AssessmentIcon from "@material-ui/icons/Assessment";
 import UnfoldMoreIcon from "@material-ui/icons/UnfoldMore";
@@ -22,6 +30,9 @@ import DescriptionIcon from "@material-ui/icons/Description";
 import SettingsIcon from "@material-ui/icons/Settings";
 import DeleteIcon from "@material-ui/icons/Delete";
 import AddIcon from "@material-ui/icons/Add";
+import MenuIcon from "@material-ui/icons/Menu";
+
+import API from "./API";
 
 import { MessagesTab, PostsTab } from "./TradeSTabs";
 import {
@@ -35,6 +46,33 @@ import {
     ListItemIcon,
 } from "@material-ui/core";
 
+class DonatFrame extends React.Component {
+    render = () => {
+        return (
+            <>
+                <iframe
+                    src="https://money.yandex.ru/quickpay/shop-widget?writer=seller&targets=%D0%9F%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%BA%D0%B0%20%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%D0%B0%20Trade-S&targets-hint=&default-sum=&button-text=13&payment-type-choice=on&mobile-payment-type-choice=on&hint=&successURL=&quickpay=shop&account=4100115567443945"
+                    width="423"
+                    height="222"
+                    frameborder="0"
+                    allowtransparency="true"
+                    scrolling="no"
+                ></iframe>
+                <Typography>
+                    Поделитесь{" "}
+                    <Link
+                        target="_blank"
+                        href="https://yasobe.ru/na/trade_s_donat"
+                    >
+                        ссылкой
+                    </Link>{" "}
+                    для большей поддержки :)
+                </Typography>
+            </>
+        );
+    };
+}
+
 class TradeSContent extends React.Component {
     render = () => {
         switch (this.props.currentPage) {
@@ -47,7 +85,27 @@ class TradeSContent extends React.Component {
             case 3:
                 return <AccountContent />;
             default:
-                return <Typography>Default page</Typography>;
+                return (
+                    <>
+                        <Paper style={{ padding: 40, margin: 40 }}>
+                            <Typography>
+                                Вас приветствует расширение-помощник для
+                                автоматической отправки сигналов с платформ в
+                                социальные сети и мессенджеры
+                            </Typography>
+                            <Typography>
+                                Для настройки расширения нажмите меню
+                                <Button>
+                                    <MenuIcon />
+                                </Button>
+                            </Typography>
+                        </Paper>
+                        <Divider />
+                        <div style={{ padding: 40 }}>
+                            <DonatFrame />
+                        </div>
+                    </>
+                );
         }
     };
 }
@@ -128,14 +186,12 @@ class FormatContent extends React.Component {
     getButtons = (callback) => {
         var self = this;
         var cb = callback;
-        chrome.storage.local.get(["buttons"], (r) => {
+        chrome.storage.local.get(["buttons", "timeDelta"], (r) => {
+            var delta = r.timeDelta ? r.timeDelta : 0;
             var buttons = r.buttons
                 ? r.buttons
                 : [
-                      [
-                          { type: "ass" },
-                          { type: "text", text: "готовим" },
-                      ],
+                      [{ type: "ass" }, { type: "text", text: "готовим" }],
                       [
                           { type: "ass" },
                           { type: "exp" },
@@ -144,23 +200,35 @@ class FormatContent extends React.Component {
                       ],
                   ];
             try {
-                cb(buttons);
+                cb(buttons, delta);
             } catch (e) {}
         });
     };
 
-    updateButtons = (buttons, callback) => {
+    updateButtons = (buttons, delta, callback) => {
         var cb = callback;
-        chrome.storage.local.set({ buttons: buttons }, () => {
-            try {
-                cb(buttons);
-            } catch (e) {}
-        });
+        if (delta != null) {
+            chrome.storage.local.set(
+                { buttons: buttons, timeDelta: delta },
+                () => {
+                    try {
+                        cb(buttons, delta);
+                    } catch (e) {}
+                }
+            );
+        } else {
+            chrome.storage.local.set({ buttons: buttons }, () => {
+                try {
+                    cb(buttons);
+                } catch (e) {}
+            });
+        }
     };
 
     load = () => {
-        this.getButtons((buttons) => {
+        this.getButtons((buttons, delta) => {
             this.setState((state) => {
+                state.timeDelta = delta;
                 state.buttons = buttons;
                 state.loaded = true;
                 return state;
@@ -171,7 +239,7 @@ class FormatContent extends React.Component {
     addButton = () => {
         this.getButtons((buttons) => {
             buttons.push([]);
-            this.updateButtons(buttons, (buttons) => {
+            this.updateButtons(buttons, undefined, (buttons) => {
                 this.setState((state) => {
                     state.buttons = buttons;
                     return state;
@@ -183,7 +251,7 @@ class FormatContent extends React.Component {
     deleteButton = (index) => {
         this.getButtons((buttons) => {
             buttons.splice(index, 1);
-            this.updateButtons(buttons, (buttons) => {
+            this.updateButtons(buttons, undefined, (buttons) => {
                 this.setState((state) => {
                     state.buttons = buttons;
                     return state;
@@ -403,12 +471,12 @@ class FormatContent extends React.Component {
                     </Breadcrumbs>
                 </ListItem>
                 <ListItem>
-                    <Typography>Предпросмотр</Typography>
+                    <Button>Предпросмотр</Button>
                 </ListItem>
                 <ListItem>
                     <TextField
                         variant="outlined"
-                        style={{ width: "100%", color: "black" }}
+                        style={{ width: "100%" }}
                         value={preview}
                     ></TextField>
                 </ListItem>
@@ -423,7 +491,9 @@ class FormatContent extends React.Component {
                     return (
                         <>
                             <Divider />
-                            <ListItem>
+                            <ListItem
+                                style={{ margin: 5, background: "#ffffff" }}
+                            >
                                 {this.getButtonConstructor(e, i)}
                             </ListItem>
                             <Divider />
@@ -445,17 +515,125 @@ class FormatContent extends React.Component {
         );
     };
 
+    setTimeDelta = (event, newValue) => {
+        var v = newValue;
+        this.updateButtons(this.state.buttons, v, () => {
+            this.setState((state) => {
+                state.timeDelta = v;
+                return state;
+            });
+        });
+    };
+
+    valueLabelFormat = (value) => {
+        return parseInt(value) >= 0 ? `+${value} ч.` : `${value} ч.`;
+    };
+
+    getMarks = () => {
+        return [...Array(25).keys()].map((e, i) => {
+            return {
+                value: i - 12,
+                label: i - 12 >= 0 ? `+${i - 12} ч.` : `${i - 12} ч.`,
+            };
+        });
+    };
+
     render = () => {
         if (this.state.loaded) {
-            return <>{this.getButtonsList()}</>;
+            return (
+                <>
+                    <Paper style={{ padding: 40, marginLeft: 5 }}>
+                        <Typography>
+                            Смещение времени в отсылаемом сигнале (для
+                            экспирации к конкретному времени)
+                        </Typography>
+                        <Slider
+                            value={this.state.timeDelta}
+                            step={1}
+                            marks={this.getMarks()}
+                            min={-12}
+                            max={12}
+                            onChange={this.setTimeDelta}
+                            style={{ paddingTop: 20, paddingBottom: 20 }}
+                            aria-labelledby="discrete-slider"
+                        />
+                    </Paper>
+                    {this.getButtonsList()}
+                </>
+            );
         }
         return <></>;
     };
 }
 
 class AccountContent extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            loaded: false,
+        };
+    }
+
+    load = () => {
+        if (!this.state.loaded)
+            API.getMyData((user) => {
+                this.setState((state) => {
+                    state.key = user.key;
+                    state.loaded = true;
+                    return state;
+                });
+            });
+    };
+
     render = () => {
-        return <>account</>;
+        this.load();
+        if (this.state.loaded) {
+            return (
+                <>
+                    <Card
+                        style={{
+                            margin: 40,
+                            width: 423,
+                        }}
+                    >
+                        <CardHeader
+                            avatar={<Avatar src="icon_128.png" />}
+                            title={
+                                <Typography variant="h5">Trade-S</Typography>
+                            }
+                            subheader="Деавторизация"
+                        />
+                        <CardActions style={{ padding: 20 }}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => {
+                                    chrome.storage.local.clear(() => {
+                                        window.location.reload();
+                                    });
+                                }}
+                            >
+                                Выйти
+                            </Button>
+                        </CardActions>
+                    </Card>
+
+                    <Divider />
+                    <Paper style={{ margin: 40, padding: 40 }}>
+                        <TextField
+                            style={{ width: "100%" }}
+                            label="Ключ для Trade-S Lite"
+                            value={this.state.key}
+                        ></TextField>
+                    </Paper>
+                    <Divider />
+                    <div style={{ padding: 40 }}>
+                        <DonatFrame />
+                    </div>
+                </>
+            );
+        }
+        return <CircularProgress style={{ padding: 20 }} />;
     };
 }
 
