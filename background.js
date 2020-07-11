@@ -193,4 +193,6 @@ chrome.tabs.onUpdated.addListener((id, info, tab) => {
     });
 });
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {});
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    
+});

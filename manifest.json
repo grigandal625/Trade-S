@@ -14,6 +14,18 @@
 		"storage",
 		"https://api.vk.com/"
 	],
+	"content_scripts": [
+		{
+			"matches": [
+				"https://olymptrade.com/*",
+				"https://m.pocketoption.com/*",
+				"https://pocketoption.com/*"
+			],
+			"js": [
+				"react-content-script/build/static/js/main.js"
+			]
+		}
+	],
 	"background": {
 		"scripts": [
 			"background.js"

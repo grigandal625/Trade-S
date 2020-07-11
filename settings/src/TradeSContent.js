@@ -62,7 +62,7 @@ class DonatFrame extends React.Component {
                     Поделитесь{" "}
                     <Link
                         target="_blank"
-                        href="https://yasobe.ru/na/trade_s_donat"
+                        href="https://money.yandex.ru/quickpay/shop-widget?writer=seller&targets=%D0%9F%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%BA%D0%B0%20%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%D0%B0%20Trade-S&targets-hint=&default-sum=&button-text=13&payment-type-choice=on&mobile-payment-type-choice=on&comment=on&hint=&successURL=&quickpay=shop&account=4100115567443945"
                     >
                         ссылкой
                     </Link>{" "}
