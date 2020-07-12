@@ -10,9 +10,7 @@ import ListItem from "@material-ui/core/ListItem";
 import MuiAccordion from "@material-ui/core/Accordion";
 import MuiAccordionSummary from "@material-ui/core/AccordionSummary";
 import MuiAccordionDetails from "@material-ui/core/AccordionDetails";
-import Tooltip from "@material-ui/core/Tooltip";
 import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
 import TableCell from "@material-ui/core/TableCell";
 import TableContainer from "@material-ui/core/TableContainer";
 import TableRow from "@material-ui/core/TableRow";
@@ -101,16 +99,6 @@ const TSAccordionSummary = withStyles({
 const TSAccordionDetails = withStyles((theme) => ({
     root: {},
 }))(MuiAccordionDetails);
-
-const LightTooltip = withStyles((theme) => ({
-    tooltip: {
-        backgroundColor: theme.palette.common.white,
-        color: "rgba(0, 0, 0, 0.87)",
-        boxShadow: theme.shadows[1],
-        fontSize: 11,
-        zIndex: 1000001,
-    },
-}))(Tooltip);
 
 class TSSignalButton extends React.Component {
     constructor(props) {
@@ -229,7 +217,7 @@ class TSWindowContent extends React.Component {
         };
         var self = this;
         chrome.storage.local.onChanged.addListener((r) => {
-            if (r.buttons || r.timeDelta) {
+            if (r.buttons || r.timeDelta || r.userId) {
                 self.build();
             }
         });
@@ -239,7 +227,10 @@ class TSWindowContent extends React.Component {
 
     build = () => {
         var self = this;
-        chrome.storage.local.get(["buttons", "timeDelta"], (r) => {
+        chrome.storage.local.get(["userId", "buttons", "timeDelta"], (r) => {
+            if (!r.userId) {
+                return;
+            }
             var buttons = r.buttons
                 ? r.buttons
                 : [
@@ -303,12 +294,25 @@ class TSWindowContent extends React.Component {
     };
 
     sendText = (text) => {
-        console.log(text);
-        this.setState((state) => {
-            state.informate = true;
-            state.information = text;
-            return state;
-        });
+        var self = this;
+        chrome.runtime.sendMessage(
+            {
+                extension: "TradeS",
+                message: {
+                    platform: PlatformExplorer.platform,
+                    text: text,
+                    chats: self.state.chats,
+                    groups: self.state.groups,
+                },
+            },
+            () => {
+                self.setState((state) => {
+                    state.informate = true;
+                    state.information = text;
+                    return state;
+                });
+            }
+        );
     };
 
     closeInfo = (e, r) => {
@@ -447,7 +451,11 @@ class TSWindowContent extends React.Component {
                 </div>
             );
         }
-        return <Typography>Loading...</Typography>;
+        return (
+            <Typography style={{ padding: 10 }}>
+                Перейдите в настройки расширения
+            </Typography>
+        );
     };
 }
 
