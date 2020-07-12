@@ -10,20 +10,34 @@ import ListItem from "@material-ui/core/ListItem";
 import MuiAccordion from "@material-ui/core/Accordion";
 import MuiAccordionSummary from "@material-ui/core/AccordionSummary";
 import MuiAccordionDetails from "@material-ui/core/AccordionDetails";
+import Tooltip from "@material-ui/core/Tooltip";
+import Table from "@material-ui/core/Table";
+import TableBody from "@material-ui/core/TableBody";
+import TableCell from "@material-ui/core/TableCell";
+import TableContainer from "@material-ui/core/TableContainer";
+import TableRow from "@material-ui/core/TableRow";
+import Snackbar from "@material-ui/core/Snackbar";
+import MuiAlert from "@material-ui/lab/Alert";
+import Portal from "@material-ui/core/Portal";
+import Popper from "@material-ui/core/Popper";
 
 import SendIcon from "@material-ui/icons/Send";
-import ExpandLessIcon from "@material-ui/icons/ExpandLess";
-import KeyboardArrowDownIcon from "@material-ui/icons/KeyboardArrowDown";
+import ArrowUpwardIcon from "@material-ui/icons/ArrowUpward";
+import ArrowDownwardIcon from "@material-ui/icons/ArrowDownward";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 
 import { common } from "@material-ui/core/colors";
 import { withStyles } from "@material-ui/core/styles";
 
 import PlatformExplorer from "./PlatformExplorer";
-import Accordion from "@material-ui/core/Accordion";
+
+function Alert(props) {
+    return <MuiAlert elevation={6} variant="filled" {...props} />;
+}
 
 const WhiteTextField = withStyles({
     root: {
+        background: "rgb(255, 255, 255, 0.2)",
         "& .Mui-focused": {
             color: "#ffffff",
         },
@@ -61,7 +75,6 @@ const TSAccordion = withStyles({
             display: "none",
         },
         "&$expanded": {
-            border: "1px solid silver",
             margin: "auto",
         },
     },
@@ -89,6 +102,116 @@ const TSAccordionDetails = withStyles((theme) => ({
     root: {},
 }))(MuiAccordionDetails);
 
+const LightTooltip = withStyles((theme) => ({
+    tooltip: {
+        backgroundColor: theme.palette.common.white,
+        color: "rgba(0, 0, 0, 0.87)",
+        boxShadow: theme.shadows[1],
+        fontSize: 11,
+        zIndex: 1000001,
+    },
+}))(Tooltip);
+
+class TSSignalButton extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {};
+    }
+
+    getSignalText = () => {
+        var f = ButtonFormat.fromItems(this.props.button);
+        var dirText = this.props.dir ? "вверх" : "вниз";
+        var delta = this.props.delta;
+        return f.restore(
+            PlatformExplorer.ass,
+            dirText,
+            PlatformExplorer.exp(delta),
+            PlatformExplorer.stn,
+            PlatformExplorer.stv
+        );
+    };
+
+    showToolTip = (e) => {
+        var btnEl = e.currentTarget;
+        this.setState((state) => {
+            state.btnEl = btnEl;
+            state.tooltip = true;
+            state.tooltipText = this.getSignalText();
+            if (state.timer === undefined) {
+                console.log("tooltip");
+                state.timer = setInterval(() => {
+                    this.showToolTip({ currentTarget: btnEl });
+                }, 500);
+            }
+            return state;
+        });
+    };
+
+    hideToolTip = () => {
+        this.setState((state) => {
+            clearInterval(state.timer);
+            state.timer = undefined;
+            state.tooltip = false;
+            return state;
+        });
+    };
+
+    render = () => {
+        var bg = this.props.dir ? "#008c3a" : "#d50000";
+        return (
+            <div>
+                <Button
+                    size="small"
+                    variant="contained"
+                    style={{
+                        background: bg,
+                        color: "#ffffff",
+                    }}
+                    onMouseOver={this.showToolTip}
+                    onMouseOut={this.hideToolTip}
+                    onClick={() => {
+                        this.props.form.sendText(this.getSignalText());
+                    }}
+                >
+                    Сигнал №{(this.props.index + 1).toString()}
+                    {this.props.dir ? (
+                        <ArrowUpwardIcon />
+                    ) : (
+                        <ArrowDownwardIcon />
+                    )}
+                </Button>
+                <Popper
+                    disablePortal={true}
+                    style={{ border: 0, borderRadius: 3 }}
+                    open={this.state.tooltip}
+                    anchorEl={this.state.btnEl}
+                    style={{
+                        zIndex: 10001,
+                        background: "#ffffff",
+                        color: "#000000",
+                        padding: 5,
+                        borderRadius: 3,
+                        marginTop: 3,
+                        marginBottom: 3,
+                        fontSize: 10,
+                    }}
+                    modifiers={{
+                        flip: {
+                            enabled: true,
+                        },
+                        preventOverflow: {
+                            enabled: true,
+                            boundariesElement: "window",
+                        },
+                    }}
+                >
+                    {this.state.tooltipText}
+                </Popper>
+            </div>
+        );
+    };
+}
+
 class TSWindowContent extends React.Component {
     constructor(props) {
         super(props);
@@ -97,6 +220,12 @@ class TSWindowContent extends React.Component {
             gridDir: true,
             chats: true,
             groups: true,
+            signalItems: {
+                ass: PlatformExplorer.ass,
+                exp: PlatformExplorer.exp(0),
+                stn: PlatformExplorer.stn,
+                stv: PlatformExplorer.stv,
+            },
         };
         var self = this;
         chrome.storage.local.onChanged.addListener((r) => {
@@ -127,6 +256,12 @@ class TSWindowContent extends React.Component {
                 state.buttons = buttons;
                 state.delta = delta;
                 state.loaded = true;
+                state.signalItems = {
+                    ass: PlatformExplorer.ass,
+                    exp: PlatformExplorer.exp(state.delta),
+                    stn: PlatformExplorer.stn,
+                    stv: PlatformExplorer.stv,
+                };
                 return state;
             });
         });
@@ -148,6 +283,80 @@ class TSWindowContent extends React.Component {
         });
     };
 
+    getSignalItems = () => {
+        this.setState((state) => {
+            state.signalItems = {
+                ass: PlatformExplorer.ass,
+                exp: PlatformExplorer.exp(state.delta),
+                stn: PlatformExplorer.stn,
+                stv: PlatformExplorer.stv,
+            };
+            state.tooltip = ButtonFormat.fromItems(state.format).restore(
+                PlatformExplorer.ass,
+                state.dir,
+                PlatformExplorer.exp(state.delta),
+                PlatformExplorer.stn,
+                PlatformExplorer.stv
+            );
+            return state;
+        });
+    };
+
+    sendText = (text) => {
+        console.log(text);
+        this.setState((state) => {
+            state.informate = true;
+            state.information = text;
+            return state;
+        });
+    };
+
+    closeInfo = (e, r) => {
+        if (r === "clickaway") {
+            return;
+        }
+        this.setState((state) => {
+            state.informate = false;
+            return state;
+        });
+    };
+
+    getSiglalRows = () => {
+        return this.state.buttons.map((button, index) => {
+            var f = ButtonFormat.fromItems(button);
+            return (
+                <TableRow>
+                    <TableCell style={{ borderBottom: 0 }}>
+                        <TSSignalButton
+                            button={button}
+                            index={index}
+                            dir={true}
+                            delta={this.state.delta}
+                            form={this}
+                        />
+                    </TableCell>
+                    <TableCell style={{ borderBottom: 0 }} align="right">
+                        <TSSignalButton
+                            button={button}
+                            index={index}
+                            dir={false}
+                            delta={this.state.delta}
+                            form={this}
+                        />
+                    </TableCell>
+                </TableRow>
+            );
+        });
+    };
+
+    signalsTable = () => {
+        return (
+            <TableContainer style={{ maxHeight: 134 }}>
+                <Table size="small">{this.getSiglalRows()}</Table>
+            </TableContainer>
+        );
+    };
+
     getAccordion = () => {
         return (
             <div>
@@ -159,7 +368,9 @@ class TSWindowContent extends React.Component {
                     >
                         Сигналы
                     </TSAccordionSummary>
-                    <TSAccordionDetails>Signals</TSAccordionDetails>
+                    <TSAccordionDetails>
+                        {this.signalsTable()}
+                    </TSAccordionDetails>
                 </TSAccordion>
                 <TSAccordion>
                     <TSAccordionSummary
@@ -171,11 +382,23 @@ class TSWindowContent extends React.Component {
                     </TSAccordionSummary>
                     <TSAccordionDetails>
                         <WhiteTextField
+                            id="trade-s-msg"
                             size="small"
                             style={{ width: "100%" }}
                             label="Текстовое сообщение"
                         ></WhiteTextField>
-                        <Button>
+                        <Button
+                            onClick={() => {
+                                var v = document.getElementById("trade-s-msg")
+                                    .value;
+                                if (v.replaceAll(" ", "") != "") {
+                                    this.sendText(v);
+                                    document.getElementById(
+                                        "trade-s-msg"
+                                    ).value = "";
+                                }
+                            }}
+                        >
                             <SendIcon
                                 size="small"
                                 style={{ color: common.white }}
@@ -192,6 +415,17 @@ class TSWindowContent extends React.Component {
         if (this.state.loaded) {
             return (
                 <div>
+                    <Portal container={PlatformExplorer.topElement}>
+                        <Snackbar
+                            open={this.state.informate}
+                            autoHideDuration={6000}
+                            onClose={this.closeInfo}
+                        >
+                            <Alert onClose={this.closeInfo} severity="info">
+                                Отправлено: {this.state.information}
+                            </Alert>
+                        </Snackbar>
+                    </Portal>
                     <List style={{ padding: 0 }}>
                         <ListItem style={{ paddingTop: 4, paddingBottom: 4 }}>
                             <Typography>Отправка:</Typography>

@@ -36,12 +36,9 @@ const TSAccordion = withStyles({
 
 const TSAccordionSummary = withStyles({
     root: {
-        borderBottom: "1px solid rgba(0, 0, 0, .125)",
         margin: -4,
         minHeight: 5,
         "&$expanded": {
-            borderBottom: "1px solid silver",
-            fontSize: 12,
             minHeight: 5,
         },
     },
@@ -69,10 +66,10 @@ class TradeSWindow extends React.Component {
                 <div
                     style={{
                         position: "fixed",
-                        zIndex: 10000,
                         background: "#151726",
                         border: "#d7d3f0 1px solid",
                         borderRadius: 2,
+                        zIndex: 10000,
                     }}
                 >
                     <TSAccordion>

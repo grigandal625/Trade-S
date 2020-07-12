@@ -205,7 +205,7 @@ class PlatformExplorer {
     }
 
     static get topElemPaths() {
-        return [`//div[@class='trade-frame__content-graph']`, `//div[@class='chart-item']`];
+        return [`//div[@class='trade-frame__content-graph']`, `//div[contains(@class, 'chart-item')]`];
     }
 
     static get topElement() {
