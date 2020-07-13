@@ -12,7 +12,6 @@ import MenuItem from "@material-ui/core/MenuItem";
 import MenuList from "@material-ui/core/MenuList";
 import Popper from "@material-ui/core/Popper";
 import ClickAwayListener from "@material-ui/core/ClickAwayListener";
-import Grow from "@material-ui/core/Grow";
 import Slider from "@material-ui/core/Slider";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import Avatar from "@material-ui/core/Avatar";
@@ -21,6 +20,11 @@ import CardHeader from "@material-ui/core/CardHeader";
 import CardActions from "@material-ui/core/CardActions";
 import CardContent from "@material-ui/core/CardContent";
 import Link from "@material-ui/core/Link";
+import Dialog from "@material-ui/core/Dialog";
+import DialogActions from "@material-ui/core/DialogActions";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogContentText from "@material-ui/core/DialogContentText";
+import DialogTitle from "@material-ui/core/DialogTitle";
 
 import AssessmentIcon from "@material-ui/icons/Assessment";
 import UnfoldMoreIcon from "@material-ui/icons/UnfoldMore";
@@ -31,6 +35,8 @@ import SettingsIcon from "@material-ui/icons/Settings";
 import DeleteIcon from "@material-ui/icons/Delete";
 import AddIcon from "@material-ui/icons/Add";
 import MenuIcon from "@material-ui/icons/Menu";
+import EditIcon from "@material-ui/icons/Edit";
+import TimelineIcon from "@material-ui/icons/Timeline";
 
 import API from "./API";
 
@@ -45,6 +51,74 @@ import {
     ButtonGroup,
     ListItemIcon,
 } from "@material-ui/core";
+
+class EditBtnNameDialog extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { key: props.initValue };
+    }
+
+    onOk = () => {
+        var button = this.props.btnList.state.edtButton;
+        var buttons = this.props.btnList.state.buttons;
+        var index = this.props.btnList.state.etdIndex;
+        button.name =
+            this.state.key.replace(/\s/g, "") != ""
+                ? this.state.key
+                : button.name;
+        buttons[index] = button;
+        this.props.btnList.updateButtons(
+            buttons,
+            this.props.btnList.state.delta,
+            () => {
+                this.props.btnList.closeBtnNameDialog();
+            }
+        );
+    };
+
+    onCancel = () => {
+        this.props.btnList.closeBtnNameDialog();
+    };
+
+    keyChanged = (event) => {
+        if (event.currentTarget) {
+            var newKey = event.currentTarget.value;
+            this.setState((state) => {
+                state.key = newKey;
+                return state;
+            });
+        }
+    };
+
+    render = () => {
+        return (
+            <Dialog open={this.props.btnList.state.nameDialog}>
+                <DialogTitle>Введите название кноки</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Введите отображаемое на платформах название кнопки.
+                    </DialogContentText>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Название кнопки"
+                        fullWidth
+                        value={this.state.key}
+                        onChange={this.keyChanged}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={this.onCancel} color="primary">
+                        Cancel
+                    </Button>
+                    <Button onClick={this.onOk} color="primary">
+                        Ok
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        );
+    };
+}
 
 class DonatFrame extends React.Component {
     render = () => {
@@ -179,7 +253,7 @@ class PostsContent extends React.Component {
 class FormatContent extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { loaded: false, buttons: undefined };
+        this.state = { loaded: false, buttons: undefined, nameDialog: false };
         this.load();
     }
 
@@ -191,13 +265,22 @@ class FormatContent extends React.Component {
             var buttons = r.buttons
                 ? r.buttons
                 : [
-                      [{ type: "ass" }, { type: "text", text: "готовим" }],
-                      [
-                          { type: "ass" },
-                          { type: "exp" },
-                          { type: "dir" },
-                          { type: "text", text: "СТАВИМ" },
-                      ],
+                      {
+                          name: "Сигнал №1",
+                          items: [
+                              { type: "ass" },
+                              { type: "text", text: "готовим" },
+                          ],
+                      },
+                      {
+                          name: "Сигнал №2",
+                          items: [
+                              { type: "ass" },
+                              { type: "exp" },
+                              { type: "dir" },
+                              { type: "text", text: "СТАВИМ" },
+                          ],
+                      },
                   ];
             try {
                 cb(buttons, delta);
@@ -238,13 +321,31 @@ class FormatContent extends React.Component {
 
     addButton = () => {
         this.getButtons((buttons) => {
-            buttons.push([]);
+            buttons.push({ name: `Сигнал №${buttons.length}`, items: [] });
             this.updateButtons(buttons, undefined, (buttons) => {
                 this.setState((state) => {
                     state.buttons = buttons;
                     return state;
                 });
             });
+        });
+    };
+
+    openBtnNameDialog = (button, index) => () => {
+        this.setState((state) => {
+            state.edtButton = button;
+            state.etdIndex = index;
+            state.nameDialog = true;
+            return state;
+        });
+    };
+
+    closeBtnNameDialog = () => {
+        this.setState((state) => {
+            state.edtButton = undefined;
+            state.etdIndex = undefined;
+            state.nameDialog = false;
+            return state;
         });
     };
 
@@ -272,6 +373,8 @@ class FormatContent extends React.Component {
                 return <FormatLineSpacingIcon />;
             case "stv":
                 return <FormatLineSpacingIcon />;
+            case "plf":
+                return <TimelineIcon />;
             case "text":
                 return <DescriptionIcon />;
         }
@@ -289,19 +392,21 @@ class FormatContent extends React.Component {
                 return "Номер страйк-цены";
             case "stv":
                 return "Значение страйк-цены";
+            case "plf":
+                return "Платформа";
             case "text":
                 return "Текст";
         }
     };
 
     formatTypes = () => {
-        return ["ass", "dir", "exp", "stn", "stv", "text"];
+        return ["ass", "dir", "exp", "stn", "stv", "plf", "text"];
     };
 
     textFormatChanged = (formatIndex, buttonIndex) => (event) => {
         var v = event.currentTarget.value;
         var buttons = this.state.buttons;
-        buttons[buttonIndex][formatIndex].text = v;
+        buttons[buttonIndex].items[formatIndex].text = v;
         this.setState(
             (state) => {
                 state.buttons = buttons;
@@ -335,7 +440,9 @@ class FormatContent extends React.Component {
     };
 
     onAddItem = (type, button, index) => (event) => {
-        button.push(type == "text" ? { type: type, text: "" } : { type: type });
+        button.items.push(
+            type == "text" ? { type: type, text: "" } : { type: type }
+        );
         this.setState(
             (state) => {
                 state.buttons[index] = button;
@@ -350,7 +457,7 @@ class FormatContent extends React.Component {
     };
 
     onDeleteItem = (itemIndex, button, index) => (event) => {
-        button.splice(itemIndex, 1);
+        button.items.splice(itemIndex, 1);
         this.setState(
             (state) => {
                 state.buttons[index] = button;
@@ -425,18 +532,17 @@ class FormatContent extends React.Component {
     };
 
     getButtonConstructor = (button, index) => {
-        var preview = ButtonFormat.fromItems(this.state.buttons[index]).restore(
-            "EUR USD",
-            "вверх",
-            "1 мин.",
-            "0",
-            "1.154"
-        );
+        var preview = ButtonFormat.fromItems(
+            this.state.buttons[index].items
+        ).restore("EUR USD", "вверх", "1 мин.", "0", "1.154", "Olymp Trade");
         return (
             <List>
                 <ListItem>
                     <ButtonGroup variant="text">
-                        <Button>{`Сигнал №${index + 1}`}</Button>
+                        <Button onClick={this.openBtnNameDialog(button, index)}>
+                            <EditIcon />
+                            {button.name}
+                        </Button>
                         <Button
                             onClick={() => {
                                 this.deleteButton(index);
@@ -448,7 +554,7 @@ class FormatContent extends React.Component {
                 </ListItem>
                 <ListItem>
                     <Breadcrumbs style={{ width: "100%" }} separator="">
-                        {button.map((e, i) => {
+                        {button.items.map((e, i) => {
                             return (
                                 <ButtonGroup size="small" variant="outlined">
                                     <Button>
@@ -486,32 +592,35 @@ class FormatContent extends React.Component {
 
     getButtonsList = () => {
         return (
-            <List>
-                {this.state.buttons.map((e, i) => {
-                    return (
-                        <>
-                            <Divider />
-                            <ListItem
-                                style={{ margin: 5, background: "#ffffff" }}
-                            >
-                                {this.getButtonConstructor(e, i)}
-                            </ListItem>
-                            <Divider />
-                        </>
-                    );
-                })}
-                <Divider />
-                <ListItem>
-                    <Button
-                        size="large"
-                        style={{ width: "100%" }}
-                        variant="outlined"
-                        onClick={this.addButton}
-                    >
-                        <AddIcon />
-                    </Button>
-                </ListItem>
-            </List>
+            <div>
+                <EditBtnNameDialog btnList={this}></EditBtnNameDialog>
+                <List>
+                    {this.state.buttons.map((e, i) => {
+                        return (
+                            <>
+                                <Divider />
+                                <ListItem
+                                    style={{ margin: 5, background: "#ffffff" }}
+                                >
+                                    {this.getButtonConstructor(e, i)}
+                                </ListItem>
+                                <Divider />
+                            </>
+                        );
+                    })}
+                    <Divider />
+                    <ListItem>
+                        <Button
+                            size="large"
+                            style={{ width: "100%" }}
+                            variant="outlined"
+                            onClick={this.addButton}
+                        >
+                            <AddIcon />
+                        </Button>
+                    </ListItem>
+                </List>
+            </div>
         );
     };
 
@@ -643,11 +752,11 @@ class ButtonFormat {
             { type: "ass" },
             { type: "exp" },
             { type: "dir" },
-            { type: "text", text: "СТАВИМ!!!" },
+            { type: "text", text: "СТАВИМ" },
         ];
     }
 
-    restore = (ass, dir, exp, stn, stv) => {
+    restore = (ass, dir, exp, stn, stv, plf) => {
         return this.items
             .map((e) => {
                 switch (e.type) {
@@ -661,6 +770,8 @@ class ButtonFormat {
                         return stn;
                     case "stv":
                         return stv;
+                    case "plf":
+                        return plf;
                     case "text":
                         return e.text;
                 }

@@ -10,6 +10,7 @@ import MuiAccordionDetails from "@material-ui/core/AccordionDetails";
 import { withStyles } from "@material-ui/core/styles";
 
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import OpenWithIcon from "@material-ui/icons/OpenWith";
 
 import PlatformExplorer from "./PlatformExplorer";
 import TSWindowContent from "./TSWindowContent";
@@ -83,7 +84,17 @@ class TradeSWindow extends React.Component {
                                 onFocus={(event) => event.stopPropagation()}
                                 style={{ cursor: "move" }}
                             >
-                                <Typography>Trade-S</Typography>
+                                <Typography>
+                                    <OpenWithIcon
+                                        style={{
+                                            color: "#ffffff",
+                                            fontSize: 17,
+                                            position: "relative",
+                                            top: 3,
+                                        }}
+                                    />
+                                    Trade-S
+                                </Typography>
                             </header>
                         </TSAccordionSummary>
                         <TSAccordionDetails>
@@ -106,14 +117,14 @@ var main = () => {
         try {
             ReactDOM.render(<TradeSWindow />, tsDiv);
         } catch (e) {
-            if (e.message.indexOf("Cannot read property 'className'") + 1) {
-                throw e;
-            }
+            console.log("Error", e);
             setTimeout(() => {
                 main();
             }, 2000);
         }
     } else {
+        console.log("Asset element", !!PlatformExplorer.assetElement);
+        console.log("Top element", !!PlatformExplorer.topElement);
         setTimeout(() => {
             main();
         }, 2000);

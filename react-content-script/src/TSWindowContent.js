@@ -107,7 +107,7 @@ class TSSignalButton extends React.Component {
     }
 
     getSignalText = () => {
-        var f = ButtonFormat.fromItems(this.props.button);
+        var f = ButtonFormat.fromItems(this.props.button.items);
         var dirText = this.props.dir ? "вверх" : "вниз";
         var delta = this.props.delta;
         return f.restore(
@@ -115,7 +115,8 @@ class TSSignalButton extends React.Component {
             dirText,
             PlatformExplorer.exp(delta),
             PlatformExplorer.stn,
-            PlatformExplorer.stv
+            PlatformExplorer.stv,
+            PlatformExplorer.platformName
         );
     };
 
@@ -154,19 +155,24 @@ class TSSignalButton extends React.Component {
                     style={{
                         background: bg,
                         color: "#ffffff",
+                        width: 150,
                     }}
                     onMouseOver={this.showToolTip}
                     onMouseOut={this.hideToolTip}
                     onClick={() => {
                         this.props.form.sendText(this.getSignalText());
                     }}
+                    endIcon={
+                        this.props.dir ? (
+                            <ArrowUpwardIcon />
+                        ) : (
+                            <ArrowDownwardIcon />
+                        )
+                    }
                 >
-                    Сигнал №{(this.props.index + 1).toString()}
-                    {this.props.dir ? (
-                        <ArrowUpwardIcon />
-                    ) : (
-                        <ArrowDownwardIcon />
-                    )}
+                    {this.props.button.name.length <= 12
+                        ? this.props.button.name
+                        : this.props.button.name.slice(0, 11) + "..."}
                 </Button>
                 <Popper
                     disablePortal={true}
@@ -208,12 +214,6 @@ class TSWindowContent extends React.Component {
             gridDir: true,
             chats: true,
             groups: true,
-            signalItems: {
-                ass: PlatformExplorer.ass,
-                exp: PlatformExplorer.exp(0),
-                stn: PlatformExplorer.stn,
-                stv: PlatformExplorer.stv,
-            },
         };
         var self = this;
         chrome.storage.local.onChanged.addListener((r) => {
@@ -247,12 +247,6 @@ class TSWindowContent extends React.Component {
                 state.buttons = buttons;
                 state.delta = delta;
                 state.loaded = true;
-                state.signalItems = {
-                    ass: PlatformExplorer.ass,
-                    exp: PlatformExplorer.exp(state.delta),
-                    stn: PlatformExplorer.stn,
-                    stv: PlatformExplorer.stv,
-                };
                 return state;
             });
         });
@@ -270,25 +264,6 @@ class TSWindowContent extends React.Component {
         var c = !this.state.groups;
         this.setState((state) => {
             state.groups = c;
-            return state;
-        });
-    };
-
-    getSignalItems = () => {
-        this.setState((state) => {
-            state.signalItems = {
-                ass: PlatformExplorer.ass,
-                exp: PlatformExplorer.exp(state.delta),
-                stn: PlatformExplorer.stn,
-                stv: PlatformExplorer.stv,
-            };
-            state.tooltip = ButtonFormat.fromItems(state.format).restore(
-                PlatformExplorer.ass,
-                state.dir,
-                PlatformExplorer.exp(state.delta),
-                PlatformExplorer.stn,
-                PlatformExplorer.stv
-            );
             return state;
         });
     };
@@ -327,14 +302,13 @@ class TSWindowContent extends React.Component {
 
     getSiglalRows = () => {
         return this.state.buttons.map((button, index) => {
-            var f = ButtonFormat.fromItems(button);
             return (
                 <TableRow>
                     <TableCell style={{ borderBottom: 0 }}>
                         <TSSignalButton
                             button={button}
                             index={index}
-                            dir={true}
+                            dir={false}
                             delta={this.state.delta}
                             form={this}
                         />
@@ -343,7 +317,7 @@ class TSWindowContent extends React.Component {
                         <TSSignalButton
                             button={button}
                             index={index}
-                            dir={false}
+                            dir={true}
                             delta={this.state.delta}
                             form={this}
                         />
@@ -469,7 +443,7 @@ class ButtonFormat {
         ];
     }
 
-    restore = (ass, dir, exp, stn, stv) => {
+    restore = (ass, dir, exp, stn, stv, plf) => {
         return this.items
             .map((e) => {
                 switch (e.type) {
@@ -483,6 +457,8 @@ class ButtonFormat {
                         return stn;
                     case "stv":
                         return stv;
+                    case "plf":
+                        return plf;
                     case "text":
                         return e.text;
                 }
@@ -516,5 +492,5 @@ class ButtonFormat {
         return b;
     };
 }
-
+// n.props.className || "", (n.props && n.props.className) ? n.props.className : "",
 export default TSWindowContent;

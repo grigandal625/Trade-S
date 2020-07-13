@@ -107,7 +107,7 @@ class PlatformExplorer {
 
     static get assetElemPaths() {
         return [
-            `//span[@class='pair-assets-select-title']`,
+            `(//span[@class='pair-assets-select-title'])|(//li[contains(@class, 'asset-tabs__tab_selected')]//span[@class='title'])`,
             `//span[@class='current-symbol']`,
         ];
     }
@@ -205,13 +205,20 @@ class PlatformExplorer {
     }
 
     static get topElemPaths() {
-        return [`//div[@class='trade-frame__content-graph']`, `//div[contains(@class, 'chart-item')]`];
+        return [
+            `//div[@class='trade-frame__content-graph']`,
+            `//div[contains(@class, 'chart-item')]`,
+        ];
     }
 
     static get topElement() {
         return PlatformExplorer.evalXPath(
             PlatformExplorer.topElemPaths[PlatformExplorer.platform]
         )[0];
+    }
+
+    static get platformName() {
+        return ["Olymp Trade", "Pocket Option"][this.platform];
     }
 }
 
