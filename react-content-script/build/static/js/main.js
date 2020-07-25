@@ -14526,24 +14526,32 @@
                                 var n = e.buttons
                                         ? e.buttons
                                         : [
-                                              [
-                                                  { type: "ass" },
-                                                  {
-                                                      type: "text",
-                                                      text:
-                                                          "\u0433\u043e\u0442\u043e\u0432\u0438\u043c",
-                                                  },
-                                              ],
-                                              [
-                                                  { type: "ass" },
-                                                  { type: "exp" },
-                                                  { type: "dir" },
-                                                  {
-                                                      type: "text",
-                                                      text:
-                                                          "\u0421\u0422\u0410\u0412\u0418\u041c",
-                                                  },
-                                              ],
+                                              {
+                                                  name:
+                                                      "\u0421\u0438\u0433\u043d\u0430\u043b \u21161",
+                                                  items: [
+                                                      { type: "ass" },
+                                                      {
+                                                          type: "text",
+                                                          text:
+                                                              "\u0433\u043e\u0442\u043e\u0432\u0438\u043c",
+                                                      },
+                                                  ],
+                                              },
+                                              {
+                                                  name:
+                                                      "\u0421\u0438\u0433\u043d\u0430\u043b \u21162",
+                                                  items: [
+                                                      { type: "ass" },
+                                                      { type: "exp" },
+                                                      { type: "dir" },
+                                                      {
+                                                          type: "text",
+                                                          text:
+                                                              "\u0421\u0422\u0410\u0412\u0418\u041c",
+                                                      },
+                                                  ],
+                                              },
                                           ],
                                     r = e.timeDelta ? e.timeDelta : 0;
                                 t.setState(function (e) {

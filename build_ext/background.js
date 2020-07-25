@@ -10,7 +10,10 @@ class API {
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "auth",
-            data: { id: id, token: token },
+            data: {
+                id: id,
+                token: token,
+            },
         };
         xhr.onload = API.recieved(callback);
         xhr.send(JSON.stringify(obj));
@@ -21,7 +24,9 @@ class API {
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "user",
-            data: { id: id },
+            data: {
+                id: id,
+            },
         };
         xhr.onload = API.recieved(callback);
         xhr.send(JSON.stringify(obj));
@@ -32,7 +37,9 @@ class API {
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "user",
-            data: { key: key },
+            data: {
+                key: key,
+            },
         };
         xhr.onload = API.recieved(callback);
         xhr.send(JSON.stringify(obj));
@@ -50,7 +57,10 @@ class API {
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "setts",
-            data: { id: id, setts: setts },
+            data: {
+                id: id,
+                setts: setts,
+            },
         };
         xhr.onload = API.recieved(callback);
         xhr.send(JSON.stringify(obj));
@@ -77,6 +87,14 @@ class API {
                                   groupToken: e.groupToken
                                       ? e.groupToken
                                       : undefined,
+                                  toShow: e.toShow ? e.toShow : [],
+                              };
+                          })
+                        : undefined,
+                    posts: r.settsData.posts
+                        ? r.settsData.posts.map((e) => {
+                              return {
+                                  toShow: e.toShow ? e.toShow : [],
                               };
                           })
                         : undefined,
@@ -96,20 +114,56 @@ class API {
                     setts.messages = user.setts.messages
                         ? user.setts.messages.map((e, i) => {
                               e.toSend =
-                                  setts.messages &&
-                                  setts.messages[i] &&
-                                  setts.messages[i].toSend
+                                  e.toSend != undefined
+                                      ? e.toSend
+                                      : setts.messages &&
+                                        setts.messages[i] &&
+                                        setts.messages[i].toSend
                                       ? setts.messages[i].toSend
+                                      : [];
+                              e.toShow =
+                                  e.toShow != undefined
+                                      ? e.toShow
+                                      : setts.messages &&
+                                        setts.messages[i] &&
+                                        setts.messages[i].toShow
+                                      ? setts.messages[i].toShow
+                                      : [];
+                              return e;
+                          })
+                        : [];
+                    setts.posts = user.setts.posts
+                        ? user.setts.posts.map((e, i) => {
+                              e.toSend =
+                                  e.toSend != undefined
+                                      ? e.toSend
+                                      : setts.posts &&
+                                        setts.posts[i] &&
+                                        setts.posts[i].toSend
+                                      ? setts.posts[i].toSend
+                                      : [];
+                              e.toShow =
+                                  e.toShow != undefined
+                                      ? e.toShow
+                                      : setts.posts &&
+                                        setts.posts[i] &&
+                                        setts.posts[i].toShow
+                                      ? setts.posts[i].toShow
                                       : [];
                               return e;
                           })
                         : [];
                     setts.accessToken = user.setts.accessToken;
-                    chrome.storage.local.set({ settsData: setts }, () => {
-                        try {
-                            cb(setts);
-                        } catch (e) {}
-                    });
+                    chrome.storage.local.set(
+                        {
+                            settsData: setts,
+                        },
+                        () => {
+                            try {
+                                cb(setts);
+                            } catch (e) {}
+                        }
+                    );
                 });
             }
         });
@@ -242,7 +296,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             var data = r.settsData ? r.settsData : {};
             if (c) {
                 var ms =
-                    data.messages && data.messages[p] ? data.messages[p] : {};
+                    data.messages && data.messages[p]
+                        ? data.messages[p]
+                        : { toSend: [] };
                 if (ms.groupToken) {
                     var token = ms.groupToken;
                     ms.toSend.map((id) => {
@@ -251,8 +307,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }
             }
             if (g) {
-                var ps = data.posts && data.posts[p] ? data.posts[p] : [];
-                ps.map((id) => {
+                var ps =
+                    data.posts && data.posts[p] && data.posts[p].toSend
+                        ? data.posts[p]
+                        : { toSend: [] };
+                ps.toSend.map((id) => {
                     return VKMethods.postOnMyGroupWall(id, t);
                 });
             }

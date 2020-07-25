@@ -234,13 +234,22 @@ class TSWindowContent extends React.Component {
             var buttons = r.buttons
                 ? r.buttons
                 : [
-                      [{ type: "ass" }, { type: "text", text: "готовим" }],
-                      [
-                          { type: "ass" },
-                          { type: "exp" },
-                          { type: "dir" },
-                          { type: "text", text: "СТАВИМ" },
-                      ],
+                      {
+                          name: "Сигнал №1",
+                          items: [
+                              { type: "ass" },
+                              { type: "text", text: "готовим" },
+                          ],
+                      },
+                      {
+                          name: "Сигнал №2",
+                          items: [
+                              { type: "ass" },
+                              { type: "exp" },
+                              { type: "dir" },
+                              { type: "text", text: "СТАВИМ" },
+                          ],
+                      },
                   ];
             var delta = r.timeDelta ? r.timeDelta : 0;
             self.setState((state) => {

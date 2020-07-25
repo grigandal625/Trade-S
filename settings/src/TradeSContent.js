@@ -321,7 +321,7 @@ class FormatContent extends React.Component {
 
     addButton = () => {
         this.getButtons((buttons) => {
-            buttons.push({ name: `Сигнал №${buttons.length}`, items: [] });
+            buttons.push({ name: `Сигнал №${buttons.length + 1}`, items: [] });
             this.updateButtons(buttons, undefined, (buttons) => {
                 this.setState((state) => {
                     state.buttons = buttons;

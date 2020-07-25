@@ -12,7 +12,10 @@ class API {
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "auth",
-            data: { id: id, token: token },
+            data: {
+                id: id,
+                token: token,
+            },
         };
         xhr.onload = API.recieved(callback);
         xhr.send(JSON.stringify(obj));
@@ -23,7 +26,9 @@ class API {
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "user",
-            data: { id: id },
+            data: {
+                id: id,
+            },
         };
         xhr.onload = API.recieved(callback);
         xhr.send(JSON.stringify(obj));
@@ -34,7 +39,9 @@ class API {
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "user",
-            data: { key: key },
+            data: {
+                key: key,
+            },
         };
         xhr.onload = API.recieved(callback);
         xhr.send(JSON.stringify(obj));
@@ -42,17 +49,20 @@ class API {
 
     static getMyData = (callback) => {
         var cb = callback;
-        chrome.storage.local.get(["userId"], (r)=>{
-            API.getUserById(r.userId, cb)
-        })
-    }
+        chrome.storage.local.get(["userId"], (r) => {
+            API.getUserById(r.userId, cb);
+        });
+    };
 
     static setUserSetts = (id, setts, callback) => {
         var xhr = new XMLHttpRequest();
         xhr.open("POST", "https://trades.pythonanywhere.com/api");
         var obj = {
             method: "setts",
-            data: { id: id, setts: setts },
+            data: {
+                id: id,
+                setts: setts,
+            },
         };
         xhr.onload = API.recieved(callback);
         xhr.send(JSON.stringify(obj));
@@ -79,6 +89,14 @@ class API {
                                   groupToken: e.groupToken
                                       ? e.groupToken
                                       : undefined,
+                                  toShow: e.toShow ? e.toShow : [],
+                              };
+                          })
+                        : undefined,
+                    posts: r.settsData.posts
+                        ? r.settsData.posts.map((e) => {
+                              return {
+                                  toShow: e.toShow ? e.toShow : [],
                               };
                           })
                         : undefined,
@@ -98,20 +116,56 @@ class API {
                     setts.messages = user.setts.messages
                         ? user.setts.messages.map((e, i) => {
                               e.toSend =
-                                  setts.messages &&
-                                  setts.messages[i] &&
-                                  setts.messages[i].toSend
+                                  e.toSend != undefined
+                                      ? e.toSend
+                                      : setts.messages &&
+                                        setts.messages[i] &&
+                                        setts.messages[i].toSend
                                       ? setts.messages[i].toSend
+                                      : [];
+                              e.toShow =
+                                  e.toShow != undefined
+                                      ? e.toShow
+                                      : setts.messages &&
+                                        setts.messages[i] &&
+                                        setts.messages[i].toShow
+                                      ? setts.messages[i].toShow
+                                      : [];
+                              return e;
+                          })
+                        : [];
+                    setts.posts = user.setts.posts
+                        ? user.setts.posts.map((e, i) => {
+                              e.toSend =
+                                  e.toSend != undefined
+                                      ? e.toSend
+                                      : setts.posts &&
+                                        setts.posts[i] &&
+                                        setts.posts[i].toSend
+                                      ? setts.posts[i].toSend
+                                      : [];
+                              e.toShow =
+                                  e.toShow != undefined
+                                      ? e.toShow
+                                      : setts.posts &&
+                                        setts.posts[i] &&
+                                        setts.posts[i].toShow
+                                      ? setts.posts[i].toShow
                                       : [];
                               return e;
                           })
                         : [];
                     setts.accessToken = user.setts.accessToken;
-                    chrome.storage.local.set({ settsData: setts }, () => {
-                        try {
-                            cb(setts);
-                        } catch (e) {}
-                    });
+                    chrome.storage.local.set(
+                        {
+                            settsData: setts,
+                        },
+                        () => {
+                            try {
+                                cb(setts);
+                            } catch (e) {}
+                        }
+                    );
                 });
             }
         });

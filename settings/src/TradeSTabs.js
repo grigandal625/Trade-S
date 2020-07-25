@@ -151,40 +151,56 @@ class MessagesTab extends React.Component {
                 : {};
             try {
                 callback(data.messages[self.state.platform], data);
-            } catch (e) {}
+            } catch (e) {
+                console.error("TradeS Error", e);
+            }
         });
     };
 
-    updateMessages = (token, toSend, callback) => {
+    updateMessages = (token, toSend, toShow, callback) => {
         this.getMessages((platformMsg, setts) => {
             platformMsg.groupToken = token;
-            platformMsg.toSend = toSend;
+            platformMsg.toSend = toSend
+                ? toSend
+                : this.state.chats.filter((e) => e.selected).map((e) => e.id);
+            platformMsg.toShow = toShow
+                ? toShow
+                : this.state.chats.filter((e) => e.shown).map((e) => e.id);
             setts.messages[this.props.platform] = platformMsg;
             chrome.storage.local.set({ settsData: setts }, () => {
                 try {
                     callback(platformMsg, setts);
-                } catch (e) {}
+                } catch (e) {
+                    console.error("TradeS Error", e);
+                }
             });
         });
     };
 
     gotToken = (token, callback) => {
         this.getMessages((platformMsg, setts) => {
-            this.updateMessages(token, platformMsg.toSend, () => {
-                this.setState(
-                    (state) => {
-                        state.gotToken = true;
-                        state.groupToken = token;
-                        state.openDialog = false;
-                        return state;
-                    },
-                    () => {
-                        try {
-                            callback(token, platformMsg, setts);
-                        } catch (e) {}
-                    }
-                );
-            });
+            this.updateMessages(
+                token,
+                platformMsg.toSend ? platformMsg.toSend : [],
+                platformMsg.toShow ? platformMsg.toShow : [],
+                () => {
+                    this.setState(
+                        (state) => {
+                            state.gotToken = true;
+                            state.groupToken = token;
+                            state.openDialog = false;
+                            return state;
+                        },
+                        () => {
+                            try {
+                                callback(token, platformMsg, setts);
+                            } catch (e) {
+                                console.error("TradeS Error", e);
+                            }
+                        }
+                    );
+                }
+            );
         });
     };
 
@@ -207,6 +223,7 @@ class MessagesTab extends React.Component {
             var p = {
                 groupToken: platformMsg.groupToken,
                 toSend: platformMsg.toSend ? platformMsg.toSend : [],
+                toShow: platformMsg.toShow ? platformMsg.toShow : [],
             };
             VKMethods.getGroupChats(p.groupToken, (result) => {
                 if (result.error) {
@@ -227,6 +244,9 @@ class MessagesTab extends React.Component {
                                     selected: p.toSend.includes(
                                         chat.conversation.peer.id
                                     ),
+                                    shown: p.toShow.includes(
+                                        chat.conversation.peer.id
+                                    ),
                                 };
                             });
                         state.loaded = true;
@@ -234,12 +254,7 @@ class MessagesTab extends React.Component {
                         return state;
                     },
                     () => {
-                        this.updateMessages(
-                            platformMsg.groupToken,
-                            this.state.chats
-                                .filter((e) => e.selected)
-                                .map((e) => e.id)
-                        );
+                        this.updateMessages(platformMsg.groupToken);
                     }
                 );
             });
@@ -255,6 +270,28 @@ class MessagesTab extends React.Component {
                     .filter((e) =>
                         e.id == chat.id ? chat.selected : e.selected
                     )
+                    .map((e) => e.id),
+                this.state.chats.filter((e) => e.shown).map((e) => e.id),
+                () => {
+                    this.setState((state) => {
+                        state.chats = state.chats.map((e) => {
+                            return e.id == chat.id ? chat : e;
+                        });
+                        return state;
+                    });
+                }
+            );
+        });
+    };
+
+    toShowChanged = (chat) => (event) => {
+        chat.shown = !chat.shown;
+        this.getMessages((platformMsg, setts) => {
+            this.updateMessages(
+                platformMsg.groupToken,
+                this.state.chats.filter((e) => e.selected).map((e) => e.id),
+                this.state.chats
+                    .filter((e) => (e.id == chat.id ? chat.shown : e.shown))
                     .map((e) => e.id),
                 () => {
                     this.setState((state) => {
@@ -278,6 +315,13 @@ class MessagesTab extends React.Component {
                             checked={e.selected}
                             color="primary"
                             onChange={this.toSendChanged(e)}
+                        />
+                    </TableCell>
+                    <TableCell align="center">
+                        <Switch
+                            checked={e.shown}
+                            color="primary"
+                            onChange={this.toShowChanged(e)}
                         />
                     </TableCell>
                     <TableCell align="right">
@@ -309,6 +353,9 @@ class MessagesTab extends React.Component {
                             <TableRow>
                                 <TableCell>Чат</TableCell>
                                 <TableCell>Отправка</TableCell>
+                                <TableCell align="center">
+                                    Отображение для Trade-S Lite
+                                </TableCell>
                                 <TableCell align="right">
                                     <Button onClick={this.reload}>
                                         <RefreshIcon />
@@ -408,7 +455,7 @@ class PostsTab extends React.Component {
 
     load = () => {
         this.getPosts((posts, setts) => {
-            var p = posts ? posts.map((e) => e) : [];
+            var p = posts ? posts : {};
             VKMethods.getMyGroups((result) => {
                 if (result.error) {
                     alert(result);
@@ -422,7 +469,8 @@ class PostsTab extends React.Component {
                             return {
                                 id: e.id,
                                 name: e.name,
-                                selected: p.includes(e.id),
+                                selected: p.toSend && p.toSend.includes(e.id),
+                                shown: p.toShow && p.toShow.includes(e.id),
                             };
                         },
                         () => {
@@ -447,21 +495,42 @@ class PostsTab extends React.Component {
                 r.settsData.posts && r.settsData.posts[self.state.platform]
                     ? r.settsData.posts[self.state.platform]
                     : [];
+            posts =
+                posts.length != undefined
+                    ? { toSend: posts, toShow: [] }
+                    : posts;
             try {
                 cb(posts, r.settsData);
-            } catch (e) {}
+            } catch (e) {
+                console.error("TradeS Error", e);
+            }
         });
     };
 
-    updatePosts = (newPosts, callback) => {
+    updatePosts = (toSend, toShow, callback) => {
         this.getPosts((posts, setts) => {
             var cb = callback;
             setts.posts = setts.posts ? setts.posts : [];
-            setts.posts[this.state.platform] = newPosts;
+            setts.posts[this.state.platform] = {
+                toSend: toSend
+                    ? toSend
+                    : this.state.groups
+                    ? this.state.groups
+                          .filter((e) => e.selected)
+                          .map((e) => e.id)
+                    : [],
+                toShow: toShow
+                    ? toShow
+                    : this.state.groups
+                    ? this.state.groups.filter((e) => e.shown).map((e) => e.id)
+                    : [],
+            };
             chrome.storage.local.set({ settsData: setts }, () => {
                 try {
                     cb(setts);
-                } catch (e) {}
+                } catch (e) {
+                    console.error("TradeS Error", e);
+                }
             });
         });
     };
@@ -472,6 +541,27 @@ class PostsTab extends React.Component {
         this.updatePosts(
             this.state.groups
                 .filter((e) => (e.id == group.id ? group.selected : e.selected))
+                .map((e) => e.id),
+            undefined,
+            () => {
+                this.setState((state) => {
+                    state.loaded = true;
+                    state.groups = state.groups.map((e) => {
+                        return e.id == group.id ? group : e;
+                    });
+                    return state;
+                });
+            }
+        );
+    };
+
+    toShowChanged = (group) => (event) => {
+        group.shown = !group.shown;
+
+        this.updatePosts(
+            undefined,
+            this.state.groups
+                .filter((e) => (e.id == group.id ? group.shown : e.shown))
                 .map((e) => e.id),
             () => {
                 this.setState((state) => {
@@ -495,6 +585,13 @@ class PostsTab extends React.Component {
                             checked={e.selected}
                             color="primary"
                             onChange={this.toSendChanged(e)}
+                        />
+                    </TableCell>
+                    <TableCell align="center">
+                        <Switch
+                            checked={e.shown}
+                            color="primary"
+                            onChange={this.toShowChanged(e)}
                         />
                     </TableCell>
                     <TableCell align="right">
@@ -524,6 +621,9 @@ class PostsTab extends React.Component {
                             <TableRow>
                                 <TableCell>Группа</TableCell>
                                 <TableCell>Отправка</TableCell>
+                                <TableCell align="center">
+                                    Отображение для Trade-S Lite
+                                </TableCell>
                                 <TableCell align="right">
                                     <Button onClick={this.reload}>
                                         <RefreshIcon />
